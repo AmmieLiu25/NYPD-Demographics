@@ -1,0 +1,1502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Who Enters, Who Stays, Who Rises</title>
+  <style>
+    :root{
+      --bg: #ffffff;
+      --text: #0b1220;
+      --muted: #5b6475;
+
+      /* blues + neon green palette */
+      --c-white:   #93c5fd;
+      --c-hisp:    #2563eb;
+      --c-black:   #1e3a8a;
+      --c-asian:   #39ff14;
+
+      --c-gray:    rgba(10,20,40,0.18);
+      --c-gray2:   rgba(10,20,40,0.35);
+    }
+
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      min-height:100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x:hidden;
+    }
+
+    .step[data-view="after20"]{
+      height: 260vh; 
+    }
+    .step[data-view="after20Ranks"]{
+      height: 200vh; 
+    }
+    .step[data-view="finale"]{
+      height: 180vh; 
+    }
+
+    /* Fullscreen canvas */
+    #canvas2025{
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      display:block;
+      background:#fff;
+      z-index: 0;
+    }
+
+    /* ===== time ruler ===== */
+    .timeRuler{
+      position: fixed;
+      right: 18px;
+      left: auto;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 6;
+      pointer-events: none;
+      width: 110px;
+      opacity: 0;
+      transition: opacity 220ms ease;
+    }
+    .timeRuler.is-visible{ opacity: 1; }
+
+    .timeRulerTitle{
+      font-size: 12px;
+      font-weight: 750;
+      color: rgba(11,18,32,0.70);
+      margin: 0 0 10px;
+      text-align: right;
+    }
+
+    .timeTrack{
+      position: relative;
+      height: min(62vh, 520px);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.86);
+      border: 1px solid rgba(10,20,40,0.12);
+      box-shadow: 0 18px 40px rgba(10,20,40,0.10);
+      backdrop-filter: blur(10px);
+      padding: 14px 10px;
+    }
+
+    .timeTick{
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      height: 1px;
+      background: rgba(10,20,40,0.10);
+    }
+
+    .timeLabel{
+      position: absolute;
+      right: 38px;
+      left: auto;
+      transform: translateY(-50%);
+      font-size: 11px;
+      font-weight: 700;
+      color: rgba(11,18,32,0.55);
+      white-space: nowrap;
+    }
+
+    .timeMarker{
+      position: absolute;
+      left: 8px;
+      right: 8px;
+      height: 0;
+      top: 14px;
+    }
+    .timeMarker::before{
+      content:"";
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 2px;
+      top: -1px;
+      background: rgba(11,18,32,0.55);
+    }
+
+    .timeBubble{
+      position: absolute;
+      right: 18px;
+      left: auto;
+      top: -16px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(11,18,32,0.92);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+
+    /* ===== floating card ===== */
+    .floatingWrap{
+      position: fixed;
+      inset: 0;
+      z-index: 5;
+      pointer-events: none;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+    }
+    .floatingStage{
+      position: relative;
+      width: min(520px, 92vw);
+      pointer-events: none;
+    }
+    .floatingCard{
+      pointer-events: auto;
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+
+      background: rgba(255,255,255,1);
+      border: 1px solid rgba(10,20,40,0.10);
+      border-radius: 18px;
+      padding: 18px 18px 16px;
+      box-shadow: 0 18px 40px rgba(10,20,40,0.12);
+      backdrop-filter: blur(10px);
+
+      transform: translateY(120vh);
+      opacity: 0;
+      will-change: transform, opacity;
+    }
+    .floatingWrap.is-hidden{
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    h1{
+      margin: 0 0 0.35rem;
+      font-size: 1.35rem;
+      letter-spacing: -0.01em;
+    }
+    .storyText{
+      margin: 0 0 0.95rem;
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 0.98rem;
+    }
+    .viewLabel{
+      margin: 0 0 0.9rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .viewLabel strong{ color: var(--text); }
+
+    .legend{
+      display:flex;
+      flex-wrap:wrap;
+      gap: 0.45rem 0.9rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin: 0.5rem 0 0;
+    }
+    .legendItem{ display:flex; align-items:center; gap:0.35rem; }
+    .swatch{ width:10px; height:10px; border-radius:999px; }
+    .swatch.white{ background: var(--c-white); }
+    .swatch.hisp{ background: var(--c-hisp); }
+    .swatch.black{ background: var(--c-black); }
+    .swatch.asian{ background: var(--c-asian); }
+
+    .chartWrap{
+      margin-top: 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(10,20,40,1);
+      background: rgba(255,255,255,1);
+      padding: 10px;
+    }
+    .chartNote{
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 0.86rem;
+      line-height: 1.5;
+    }
+
+    .shiftList{
+      margin: 10px 0 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 8px;
+    }
+    .shiftItem{
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border: 1px solid rgba(10,20,40,0.10);
+      border-radius: 14px;
+      background: rgba(255,255,255,1);
+    }
+    .shiftLeft{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      font-weight: 750;
+    }
+    .shiftDot{
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      flex: 0 0 auto;
+    }
+    .shiftRight{
+      color: rgba(11,18,32,0.78);
+      font-weight: 700;
+      font-size: 0.92rem;
+      white-space: nowrap;
+    }
+
+    /* ===== scroll driver ===== */
+    .scrolly{ position: relative; z-index: 1; }
+    .step{ height: 100vh; padding: 1px 0; }
+
+    @media (max-width: 720px){
+      .floatingWrap{
+        justify-content: center;
+        align-items: flex-end;
+        padding: 14px;
+      }
+      .timeRuler{
+        right: 10px;
+        width: 96px;
+      }
+      .timeLabel{
+        right: 34px;
+        font-size: 10px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="canvas2025"></canvas>
+
+  <!-- Time ruler  -->
+  <div class="timeRuler" id="timeRuler" aria-hidden="true">
+    <div class="timeRulerTitle">Years Since Hire</div>
+    <div class="timeTrack" id="timeTrack">
+      <div class="timeMarker" id="timeMarker">
+        <div class="timeBubble" id="timeBubble">0y</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating card stage -->
+  <div class="floatingWrap is-hidden" id="floatingWrap">
+    <div class="floatingStage" id="floatingStage">
+
+      <!-- Scene 3 -->
+      <div class="floatingCard" data-view="cohortGreyStat">
+        <h1>2025 Newly-Hired</h1>
+        <p class="storyText">In 2025, there were around 4029 new hires. This is the highest yearly total in recent record. Each gray dot around you represents a NYPD officer.</p>
+        <p class="storyText">Now, <strong>let's take a look at who your peers are.</strong></p>
+        <p class="viewLabel">Source: NYC Open Data</p>
+      </div>
+
+      <!-- Scene 4 -->
+      <div class="floatingCard" data-view="peersNew">
+        <h1>Who Enters?</h1>
+        <p class="storyText">Here, we have seperated the newly-hired into four categories based on their race.</p>
+        <p class="storyText"><strong>Scroll down to see a comparison between the newly-hired of this year and 2004.</strong></p>
+        <div class="legend">
+          <div class="legendItem"><span class="swatch white"></span><span>White</span></div>
+          <div class="legendItem"><span class="swatch hisp"></span><span>Hispanic</span></div>
+          <div class="legendItem"><span class="swatch black"></span><span>Black</span></div>
+          <div class="legendItem"><span class="swatch asian"></span><span>Asian</span></div>
+        </div>
+      </div>
+
+      <!-- Scene 5 -->
+      <div class="floatingCard" data-view="gallery2004">
+        <h1>Newly-Hired: 2025 V.S. 2004</h1>
+        <p class="storyText">Through the direct comparison, we can see that the newly-hired officers of 2025 are more racially diverse, with a significant rise in the numbers of Hispanic and Asian officers.</p>
+        <p class="storyText">According to a <a href="https://www.thecrimson.com/article/2020/3/12/hupa-says-external-review/">police recruiting review</a>, the surge in numbers of Hispanic and Asian officers is largely due to a targeted recruitment aligned with shifting NYC demographics.</p>
+        <p class="storyText">It seems like the NYPD has been doing a pretty good job in increasing diversity within its officers. <strong>But is that really the case?</strong></p>
+        <div class="legend">
+          <div class="legendItem"><span class="swatch white"></span><span>White</span></div>
+          <div class="legendItem"><span class="swatch hisp"></span><span>Hispanic</span></div>
+          <div class="legendItem"><span class="swatch black"></span><span>Black</span></div>
+          <div class="legendItem"><span class="swatch asian"></span><span>Asian</span></div>
+        </div>
+      </div>
+
+      <!-- Scene 6  -->
+      <div class="floatingCard" data-view="promotionPath">
+        <h1>Promotion</h1>
+        <p class="storyText">
+          Diversity at entry is only the first chapter. Over time, promotions decide who gains authority.
+          This line graph shows the share of a same cohort that reaches each leadership rank after an amount of time. 
+          From this graph, we can see that major promotions starts to take place around <strong>15 to 20 years</strong> after being appointed. 
+        </p>
+
+        <div class="chartWrap">
+          <svg id="promoChart" viewBox="0 0 520 240" width="100%" height="240" role="img"
+               aria-label="Line chart showing percentage of cohort reaching Lieutenant and Captain over time">
+          </svg>
+        </div>
+
+        <p class="chartNote">
+          X-axis: years since hire. 
+          Y-axis: % of officers promoted to this position from original cohort.
+        </p>
+      </div>
+
+      <!-- Scene 7 -->
+      <div class="floatingCard" data-view="backTo2025">
+        <p class="storyText">
+         <strong>Now, watch how your cohort evolves as time passes and promotions begin to take effect.</strong>
+        </p>
+      </div>
+
+      <!-- Scene 8 -->
+      <div class="floatingCard" data-view="after20">
+        <h1>Who Stays?</h1>
+        <p class="storyText">
+          Around the 20-year mark, more people have moved through promotions and specialty tracks.
+          There is a significant decrease in percentages of of Hispanic, Asian, Black officers and a significant increase in percentages of white officers. This indicates that the composition on the top shifts, and diversity narrows. 
+        </p>
+
+        <ul class="shiftList">
+          <li class="shiftItem">
+            <div class="shiftLeft"><span class="shiftDot" style="background: var(--c-white)"></span>White</div>
+            <div class="shiftRight">20.20% → 42.20%</div>
+          </li>
+          <li class="shiftItem">
+            <div class="shiftLeft"><span class="shiftDot" style="background: var(--c-hisp)"></span>Hispanic</div>
+            <div class="shiftRight">35.30% → 29.38%</div>
+          </li>
+          <li class="shiftItem">
+            <div class="shiftLeft"><span class="shiftDot" style="background: var(--c-black)"></span>Black</div>
+            <div class="shiftRight">26.20% → 19.76%</div>
+          </li>
+          <li class="shiftItem">
+            <div class="shiftLeft"><span class="shiftDot" style="background: var(--c-asian)"></span>Asian</div>
+            <div class="shiftRight">18.10% → 8.60%</div>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Scene 9  -->
+      <div class="floatingCard" data-view="after20Ranks">
+        <h1>Who Rises?</h1>
+        <p class="storyText">
+          Each bar shows the racial composition within a leadership rank. Despite gains at entry, white officers continue to make up the majority of leadership positions, while other racial groups remain underrepresented.
+        </p>
+        <p class="viewLabel"><strong>Lieutenant • Captain • Sergeant</strong></p>
+
+        <div class="chartWrap">
+          <svg id="rankChart" viewBox="0 0 520 260" width="100%" height="260" role="img"
+               aria-label="Stacked bar chart showing racial makeup within Lieutenant, Captain, and Sergeant ranks">
+          </svg>
+        </div>
+
+        <div class="legend">
+          <div class="legendItem"><span class="swatch white"></span><span>White</span></div>
+          <div class="legendItem"><span class="swatch hisp"></span><span>Hispanic</span></div>
+          <div class="legendItem"><span class="swatch black"></span><span>Black</span></div>
+          <div class="legendItem"><span class="swatch asian"></span><span>Asian</span></div>
+        </div>
+
+        <p class="chartNote">
+          Percentages are within each rank (stacked to 100%).
+        </p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Invisible scroll steps -->
+  <div class="scrolly">
+    <section class="step" data-view="opening"></section>
+    <section class="step" data-view="youText"></section>
+    <section class="step" data-view="cohortGreyStat"></section>
+    <section class="step" data-view="peersNew"></section>
+    <section class="step" data-view="gallery2004"></section>
+    <section class="step" data-view="promotionPath"></section>
+    <section class="step" data-view="backTo2025"></section>
+    <section class="step" data-view="after20"></section>
+    <section class="step" data-view="after20Ranks"></section>
+    <section class="step" data-view="finale"></section>
+  </div>
+
+<script>
+/* ================= settings ================= */
+const DOT_COUNT = 4000;
+const heroIndex = 0;
+const UP_SHIFT = 70;
+
+const R_DOT  = 2.8;
+const R_HERO = 6.6;
+
+const DRIFT_AMP  = 3.5;
+const DRIFT_FREQ = 0.00055;
+
+// data
+const percents2025 = { white: 20.2, hispanic: 35.3, black: 26.2, asian: 18.1 };
+const percents2004 = { asian: 8.42, black: 29.30, hispanic: 25.89, white: 36.39 };
+
+//20 years later
+const percentsAfter20 = { white: 42.20, hispanic: 29.38, black: 19.76, asian: 8.60 };
+
+//Rank makeup 
+const rankPercentsByRank = [
+  { rank: "Lieutenant", asian: 11.30, black: 11.67, hispanic: 24.94, white: 52.04 },
+  { rank: "Captain",    asian: 12.33, black: 15.62, hispanic: 27.95, white: 44.11 },
+  { rank: "Sergeant",   asian: 13.20, black: 13.31, hispanic: 27.02, white: 46.43 }
+];
+
+// promotion
+const promotionSeries = [
+  {
+    name: "Lieutenant",
+    colorVar: "--c-hisp",
+    points: [
+      [0, 0.00],
+      [5, 0.00],
+      [10, 0.00],
+      [15, 5.88],
+      [20, 8.76],
+      [25, 11.86]
+    ]
+  },
+  {
+    name: "Captain",
+    colorVar: "--c-black",
+    points: [
+      [0, 0.00],
+      [5, 0.00],
+      [10, 0.00],
+      [15, 0.00],
+      [20, 2.83],
+      [25, 3.23]
+    ]
+  }
+];
+
+const css = getComputedStyle(document.documentElement);
+const raceColors = {
+  white:   css.getPropertyValue("--c-white").trim(),
+  hispanic:css.getPropertyValue("--c-hisp").trim(),
+  black:   css.getPropertyValue("--c-black").trim(),
+  asian:   css.getPropertyValue("--c-asian").trim(),
+};
+const COLOR_GRAY  = css.getPropertyValue("--c-gray").trim();
+const COLOR_GRAY2 = css.getPropertyValue("--c-gray2").trim();
+const raceOrder = ["white","hispanic","black","asian"];
+
+/* ================= views ================= */
+const views = {
+  opening:        { mode: "soloTitleDelay" },
+  youText:        { mode: "soloYouText" },
+  cohortGreyStat: { mode: "cohortGrey" },
+  peersNew:       { mode: "bands", percents: percents2025 },
+  gallery2004:    { mode: "gallery" },
+  promotionPath:  { mode: "bands", percents: percents2025 },
+  backTo2025:     { mode: "bands", percents: percents2025 },
+
+  after20:        { mode: "bandsShift", from: percents2025, to: percentsAfter20 },
+  after20Ranks:   { mode: "bands", percents: percentsAfter20 },
+
+  // ✅ Finale
+  finale:         { mode: "finale" }
+};
+
+/* ================= canvas ================= */
+const canvas = document.getElementById("canvas2025");
+const ctx = canvas.getContext("2d");
+const steps = Array.from(document.querySelectorAll(".step"));
+
+let width, height, dpr;
+function resize(){
+  width = window.innerWidth;
+  height = window.innerHeight;
+  dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.floor(width * dpr);
+  canvas.height = Math.floor(height * dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+window.addEventListener("resize", resize);
+resize();
+
+/* ================= particles ================= */
+const particles2025 = [];
+const particles2004 = [];
+
+function initParticles(arr, includeHero){
+  arr.length = 0;
+  for(let i=0;i<DOT_COUNT;i++){
+    arr.push({
+      x: Math.random()*width,
+      y: Math.random()*height,
+      tx: Math.random()*width,
+      ty: Math.random()*height,
+      r: (includeHero && i===heroIndex) ? R_HERO : R_DOT,
+      alpha: 1,
+      race: "white",
+      isHero: (includeHero && i===heroIndex),
+
+      px: Math.random()*Math.PI*2,
+      py: Math.random()*Math.PI*2,
+      sx: 0.3 + Math.random()*0.9,
+      sy: 0.3 + Math.random()*0.9
+    });
+  }
+}
+initParticles(particles2025, true);
+initParticles(particles2004, false);
+
+/* ================= text ================= */
+let openingTextMode = "none";
+let sceneStartMs = 0;
+let titleVisible = false;
+let galleryStartMs = 0;
+
+function clamp01(x){ return Math.max(0, Math.min(1, x)); }
+function easeOutCubic(x){ return 1 - Math.pow(1-x,3); }
+function easeInOutCubic(x){
+  return x < 0.5 ? 4*x*x*x : 1 - Math.pow(-2*x+2,3)/2;
+}
+function wrapText(text, x, y, maxWidth, lineHeight){
+  const words = text.split(" ");
+  let line = "";
+  const lines = [];
+  for(let n=0;n<words.length;n++){
+    const testLine = line + words[n] + " ";
+    const w = ctx.measureText(testLine).width;
+    if(w > maxWidth && n > 0){
+      lines.push(line.trim());
+      line = words[n] + " ";
+    } else line = testLine;
+  }
+  lines.push(line.trim());
+  lines.forEach((l, i)=> ctx.fillText(l, x, y + i*lineHeight));
+}
+function drawTitleUnderDot(nowMs){
+  const delay = 700;
+  if(!titleVisible){
+    if(nowMs - sceneStartMs >= delay) titleVisible = true;
+    else return;
+  }
+  const t = clamp01((nowMs - (sceneStartMs + delay)) / 800);
+  const e = easeOutCubic(t);
+
+  const x = width * 0.50;
+  const yDot = height * 0.45 - UP_SHIFT;
+
+  const baseY = yDot + 50;
+  const startY = baseY + 30;
+  const y = startY + (baseY - startY) * e;
+
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.fillStyle = `rgba(11,18,32,${0.95 * e})`;
+  ctx.font = "800 46px system-ui, -apple-system, sans-serif";
+  ctx.fillText("Who enters, Who stays, Who rises", x, y);
+
+  ctx.fillStyle = `rgba(11,18,32,${0.68 * e})`;
+  ctx.font = "650 18px system-ui, -apple-system, sans-serif";
+  ctx.fillText("NYPD Demographics", x, y + 56);
+  ctx.restore();
+}
+function drawYouTextUnderDot(nowMs){
+  const t = clamp01((nowMs - sceneStartMs) / 650);
+  const e = easeOutCubic(t);
+
+  const x = width * 0.50;
+  const yDot = height * 0.45 - UP_SHIFT;
+
+  const baseY = yDot + 92;
+  const startY = baseY + 18;
+  const y = startY + (baseY - startY) * e;
+
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+
+  ctx.fillStyle = `rgba(11,18,32,${0.92 * e})`;
+  ctx.font = "750 28px system-ui, -apple-system, sans-serif";
+  wrapText("You are a newly hired officer in 2025.", x, y, 520, 36);
+
+  ctx.fillStyle = `rgba(11,18,32,${0.62 * e})`;
+  ctx.font = "600 16px system-ui, -apple-system, sans-serif";
+  ctx.fillText("Scroll to meet your cohort.", x, y + 78);
+
+  ctx.restore();
+}
+
+/* ================= band helpers ================= */
+function countsFromPercents(percents){
+  const counts = {};
+  let sum = 0;
+  raceOrder.forEach(r=>{
+    const n = Math.round((percents[r]||0)/100 * DOT_COUNT);
+    counts[r]=n; sum+=n;
+  });
+  counts.white = (counts.white||0) + (DOT_COUNT - sum);
+  return counts;
+}
+function buildRaceArray(percents){
+  const counts = countsFromPercents(percents);
+  const arr = [];
+  raceOrder.forEach(r=>{
+    for(let i=0;i<(counts[r]||0);i++) arr.push(r);
+  });
+  if(arr.length > DOT_COUNT) arr.length = DOT_COUNT;
+  while(arr.length < DOT_COUNT) arr.push("white");
+
+  for(let i=arr.length-1;i>1;i--){
+    const j = 1 + Math.floor(Math.random()*i);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+function computeBandRangesForHeight(percents, H){
+  const total = raceOrder.reduce((s,r)=>s+(percents[r]||0),0) || 100;
+  let cum=0;
+  const ranges={};
+  raceOrder.forEach(r=>{
+    const frac = (percents[r]||0)/total;
+    const top = cum*H;
+    const bottom = (cum+frac)*H;
+    ranges[r]={top,bottom};
+    cum += frac;
+  });
+  return ranges;
+}
+function setBands(arr, percents, W, H){
+  const raceArr = buildRaceArray(percents);
+  const bands = computeBandRangesForHeight(percents, H);
+  const innerMargin = 0.10;
+
+  arr.forEach((p,i)=>{
+    p.alpha = 1;
+    p.r = p.isHero ? p.r : R_DOT;
+
+    if(p.isHero){
+      p.race = "black";
+    } else {
+      p.race = raceArr[i] || "white";
+    }
+
+    const band = bands[p.race] || {top:0,bottom:H};
+    const h = Math.max(1, band.bottom - band.top);
+    const top = band.top + h*innerMargin;
+    const bottom = band.bottom - h*innerMargin;
+
+    p.tx = Math.random() * W;
+    p.ty = top + Math.random() * Math.max(1, bottom-top);
+  });
+}
+
+function setBandsInRect(arr, percents, rect){
+  const inset = 0.12; 
+  const rx = rect.x + rect.w * inset;
+  const ry = rect.y + rect.h * inset;
+  const rw = rect.w * (1 - inset * 2);
+  const rh = rect.h * (1 - inset * 2);
+
+  const raceArr = buildRaceArray(percents);
+  const bands = computeBandRangesForHeight(percents, rh);
+  const innerMargin = 0.10;
+
+  arr.forEach((p,i)=>{
+    p.alpha = 1;
+    p.r = p.isHero ? p.r : R_DOT;
+
+    if(p.isHero){
+      p.race = "black";
+    } else {
+      p.race = raceArr[i] || "white";
+    }
+
+    const band = bands[p.race] || {top:0,bottom:rh};
+    const h = Math.max(1, band.bottom - band.top);
+    const top = band.top + h*innerMargin;
+    const bottom = band.bottom - h*innerMargin;
+
+    p.tx = rx + Math.random() * rw;
+    p.ty = ry + top + Math.random() * Math.max(1, bottom-top);
+  });
+}
+
+
+function drawBandLabelsOn(context, percents, H){
+  const bands = computeBandRangesForHeight(percents, H);
+
+  context.save();
+  context.textBaseline = "middle";
+
+  const labelX = 36;
+  const nameSize = 28;
+  const pctSize = 17;
+
+  raceOrder.forEach(r => {
+    const band = bands[r];
+    const midY = (band.top + band.bottom) / 2;
+
+    const name =
+      r === "hispanic" ? "Hispanic" :
+      r.charAt(0).toUpperCase() + r.slice(1);
+
+    const pct = (percents[r] ?? 0).toFixed(2) + "%";
+
+    context.font = `800 ${nameSize}px system-ui, -apple-system, sans-serif`;
+    const nameWidth = context.measureText(name).width;
+
+    context.font = `650 ${pctSize}px system-ui, -apple-system, sans-serif`;
+    const pctWidth = context.measureText(pct).width;
+
+    const boxWidth = Math.max(nameWidth, pctWidth) + 26;
+    const boxHeight = 60;
+
+    context.globalAlpha = 0.94;
+    context.fillStyle = "#ffffff";
+    context.shadowColor = "rgba(0,0,0,0.14)";
+    context.shadowBlur = 14;
+    context.shadowOffsetY = 5;
+
+    context.beginPath();
+    context.roundRect(labelX - 12, midY - boxHeight / 2, boxWidth, boxHeight, 12);
+    context.fill();
+
+    context.shadowBlur = 0;
+
+    context.globalAlpha = 1;
+    context.fillStyle = "rgba(10,20,40,0.22)";
+    context.fillRect(labelX - 18, midY - 18, 4, 36);
+
+    context.fillStyle = "#0b1220";
+    context.font = `800 ${nameSize}px system-ui, -apple-system, sans-serif`;
+    context.fillText(name, labelX, midY - 11);
+
+    context.fillStyle = "rgba(11,18,32,0.78)";
+    context.font = `650 ${pctSize}px system-ui, -apple-system, sans-serif`;
+    context.fillText(pct, labelX, midY + 16);
+  });
+
+  context.restore();
+}
+
+/* ================= side-by-side ================= */
+function galleryFinalFrames(){
+  const frameW = Math.min(520, width * 0.42);
+  const frameH = Math.min(420, height * 0.62);
+  const gap = 56;
+  const centerY = height * 0.52;
+
+  return {
+    left:  { x: width/2 - frameW - gap/2, y: centerY - frameH/2, w: frameW, h: frameH },
+    right: { x: width/2 + gap/2,        y: centerY - frameH/2, w: frameW, h: frameH }
+  };
+}
+function lerp(a,b,t){ return a + (b-a)*t; }
+function lerpRect(a,b,t){
+  return { x: lerp(a.x,b.x,t), y: lerp(a.y,b.y,t), w: lerp(a.w,b.w,t), h: lerp(a.h,b.h,t) };
+}
+
+let transitionEndMs = 0;
+const TRANSITION_MS = 900;
+function startTransition(){ transitionEndMs = performance.now() + TRANSITION_MS; }
+
+function drawParticlesGeneric(context, arr, mode, nowMs, isLeft){
+  for(const p of arr){
+    p.x += (p.tx - p.x) * 0.08;
+    p.y += (p.ty - p.y) * 0.08;
+
+    if(p.alpha <= 0.001) continue;
+
+    const driftAllowedMode = (mode === "cohortGrey" || mode === "bands" || mode === "gallery" || mode === "bandsShift");
+    const inTransition = nowMs < transitionEndMs;
+    const amp = (driftAllowedMode && inTransition) ? DRIFT_AMP : 0;
+
+    const dx = amp * Math.sin((nowMs * DRIFT_FREQ) * p.sx + p.px);
+    const dy = amp * Math.cos((nowMs * DRIFT_FREQ) * p.sy + p.py);
+
+    let fill = COLOR_GRAY;
+
+    if(mode === "soloTitleDelay" || mode === "soloYouText"){
+      fill = "#000000";
+    } else if(mode === "cohortGrey"){
+      fill = (p.isHero && isLeft) ? "#000000" : COLOR_GRAY;
+    } else if(mode === "bands" || mode === "bandsShift"){
+      fill = p.isHero ? COLOR_GRAY2 : (raceColors[p.race] || COLOR_GRAY);
+    } else if(mode === "gallery"){
+      fill = raceColors[p.race] || COLOR_GRAY;
+    }
+
+    context.globalAlpha = p.alpha * (p.isHero && isLeft ? 1 : 0.90);
+    context.beginPath();
+    context.arc(p.x + dx, p.y + dy, p.r, 0, Math.PI*2);
+    context.fillStyle = fill;
+    context.fill();
+  }
+  context.globalAlpha = 1;
+}
+function drawGallery(nowMs){
+  const tRaw = clamp01((nowMs - galleryStartMs) / 1400);
+  const t = easeInOutCubic(tRaw);
+
+  const startRect = { x: 0, y: 0, w: width, h: height };
+  const final = galleryFinalFrames();
+  const leftFrame  = lerpRect(startRect, final.left, t);
+  const rightFrame = lerpRect(startRect, final.right, t);
+
+  ctx.save();
+  ctx.fillStyle = `rgba(255,255,255,${0.0 + 0.35*t})`;
+  ctx.fillRect(0,0,width,height);
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = 0.92 * t;
+  ctx.fillStyle = "rgba(255,255,255,0.96)";
+  ctx.strokeStyle = "rgba(10,20,40,0.12)";
+  ctx.lineWidth = 1;
+
+  [leftFrame, rightFrame].forEach(f=>{
+    ctx.beginPath();
+    ctx.roundRect(f.x-10, f.y-10, f.w+20, f.h+20, 18);
+    ctx.fill();
+    ctx.stroke();
+  });
+  ctx.restore();
+
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(leftFrame.x, leftFrame.y, leftFrame.w, leftFrame.h);
+  ctx.clip();
+  drawParticlesGeneric(ctx, particles2025, "gallery", nowMs, true);
+
+  ctx.save();
+ctx.translate(leftFrame.x, leftFrame.y);
+ctx.scale(0.8, 0.8);              
+drawBandLabelsOn(ctx, percents2025, leftFrame.h / 0.95);
+ctx.restore();
+
+  ctx.restore();
+
+
+  ctx.save();
+  ctx.globalAlpha = 0.25 + 0.75*t;
+  ctx.beginPath();
+  ctx.rect(rightFrame.x, rightFrame.y, rightFrame.w, rightFrame.h);
+  ctx.clip();
+  drawParticlesGeneric(ctx, particles2004, "gallery", nowMs, false);
+
+  ctx.save();
+ctx.translate(rightFrame.x, rightFrame.y);
+ctx.scale(0.8, 0.8);
+drawBandLabelsOn(ctx, percents2004, rightFrame.h / 0.95);
+ctx.restore();
+
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = 0.9 * t;
+  ctx.fillStyle = "#0b1220";
+  ctx.font = "750 14px system-ui, -apple-system, sans-serif";
+  ctx.fillText("2025", leftFrame.x, leftFrame.y - 14);
+  ctx.fillText("2004", rightFrame.x, rightFrame.y - 14);
+  ctx.restore();
+}
+
+/* ================= promition ================= */
+function renderPromotionChart(){
+  const svg = document.getElementById("promoChart");
+  if(!svg) return;
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+
+  const NS = "http://www.w3.org/2000/svg";
+  const W = 520, H = 240;
+  const pad = { l: 44, r: 16, t: 16, b: 34 };
+
+  const years = promotionSeries.flatMap(s => s.points.map(p => p[0]));
+  const vals  = promotionSeries.flatMap(s => s.points.map(p => p[1]));
+  const xMin = Math.min(...years), xMax = Math.max(...years);
+
+  const yMaxRaw = Math.max(...vals);
+  const yMax = Math.max(12, Math.ceil((yMaxRaw + 1) / 2) * 2);
+  const yMin = 0;
+
+  const x = (yr) => pad.l + ( (yr - xMin) / (xMax - xMin) ) * (W - pad.l - pad.r);
+  const y = (v)  => pad.t + (1 - (v - yMin) / (yMax - yMin)) * (H - pad.t - pad.b);
+
+  const add = (tag, attrs={}, parent=svg) => {
+    const el = document.createElementNS(NS, tag);
+    for(const k in attrs) el.setAttribute(k, attrs[k]);
+    parent.appendChild(el);
+    return el;
+  };
+
+  const yTicks = [0, yMax/4, yMax/2, (3*yMax)/4, yMax].map(v => Math.round(v*100)/100);
+  yTicks.forEach(v => {
+    add("line", {
+      x1: pad.l, x2: W - pad.r,
+      y1: y(v),  y2: y(v),
+      stroke: "rgba(10,20,40,0.08)",
+      "stroke-width": 1
+    });
+
+    add("text", {
+      x: pad.l - 8,
+      y: y(v) + 4,
+      "text-anchor": "end",
+      "font-size": 11,
+      "font-weight": 600,
+      fill: "rgba(11,18,32,0.55)"
+    }).textContent = `${v}%`;
+  });
+
+  const xTicks = [0,5,10,15,20,25];
+  xTicks.forEach(yr => {
+    add("line", {
+      x1: x(yr), x2: x(yr),
+      y1: pad.t, y2: H - pad.b,
+      stroke: "rgba(10,20,40,0.05)",
+      "stroke-width": 1
+    });
+    add("text", {
+      x: x(yr),
+      y: H - 12,
+      "text-anchor": "middle",
+      "font-size": 11,
+      "font-weight": 600,
+      fill: "rgba(11,18,32,0.55)"
+    }).textContent = `${yr}y`;
+  });
+
+  add("line", { x1: pad.l, y1: pad.t, x2: pad.l, y2: H - pad.b, stroke: "rgba(10,20,40,0.20)", "stroke-width": 1.2 });
+  add("line", { x1: pad.l, y1: H - pad.b, x2: W - pad.r, y2: H - pad.b, stroke: "rgba(10,20,40,0.20)", "stroke-width": 1.2 });
+
+  promotionSeries.forEach((series, idx) => {
+    const stroke = css.getPropertyValue(series.colorVar).trim() || "#0b1220";
+    const pts = series.points;
+
+    const d = pts.map((p,i) => `${i===0 ? "M":"L"} ${x(p[0]).toFixed(2)} ${y(p[1]).toFixed(2)}`).join(" ");
+    add("path", {
+      d,
+      fill: "none",
+      stroke,
+      "stroke-width": 3,
+      "stroke-linecap": "round",
+      "stroke-linejoin": "round",
+      opacity: 0.95
+    });
+
+    pts.forEach(p => {
+      add("circle", {
+        cx: x(p[0]),
+        cy: y(p[1]),
+        r: 4.2,
+        fill: "#ffffff",
+        stroke,
+        "stroke-width": 2
+      });
+    });
+
+    const last = pts[pts.length - 1];
+    add("text", {
+      x: x(last[0]) - 8,
+      y: y(last[1]) - 10 - (idx * 14),
+      "text-anchor": "end",
+      "font-size": 12,
+      "font-weight": 800,
+      fill: "rgba(11,18,32,0.88)"
+    }).textContent = `${series.name} (${last[1].toFixed(2)}%)`;
+  });
+}
+
+/* ================= rank ================= */
+function renderRankChart(){
+  const svg = document.getElementById("rankChart");
+  if(!svg) return;
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+
+  const NS = "http://www.w3.org/2000/svg";
+  const W = 520, H = 260;
+  const pad = { l: 44, r: 16, t: 18, b: 34 };
+
+  const add = (tag, attrs={}, parent=svg) => {
+    const el = document.createElementNS(NS, tag);
+    for(const k in attrs) el.setAttribute(k, attrs[k]);
+    parent.appendChild(el);
+    return el;
+  };
+
+  const y = (pct) => pad.t + (1 - pct/100) * (H - pad.t - pad.b);
+
+  // grid + labels
+  [0,25,50,75,100].forEach(v => {
+    add("line", {
+      x1: pad.l, x2: W - pad.r,
+      y1: y(v), y2: y(v),
+      stroke: "rgba(10,20,40,0.08)",
+      "stroke-width": 1
+    });
+    add("text", {
+      x: pad.l - 8,
+      y: y(v) + 4,
+      "text-anchor": "end",
+      "font-size": 11,
+      "font-weight": 600,
+      fill: "rgba(11,18,32,0.55)"
+    }).textContent = `${v}%`;
+  });
+
+  // axes
+  add("line", { x1: pad.l, y1: pad.t, x2: pad.l, y2: H - pad.b, stroke: "rgba(10,20,40,0.20)", "stroke-width": 1.2 });
+  add("line", { x1: pad.l, y1: H - pad.b, x2: W - pad.r, y2: H - pad.b, stroke: "rgba(10,20,40,0.20)", "stroke-width": 1.2 });
+
+  const innerW = (W - pad.l - pad.r);
+  const barCount = rankPercentsByRank.length;
+  const gap = 22;
+  const barW = Math.min(110, (innerW - gap*(barCount-1)) / barCount);
+  const startX = pad.l + (innerW - (barW*barCount + gap*(barCount-1))) / 2;
+  const baseY = H - pad.b;
+  const usableH = (H - pad.t - pad.b);
+
+  // stacked bars
+  rankPercentsByRank.forEach((row, i) => {
+    const x0 = startX + i*(barW + gap);
+
+    let cum = 0;
+    raceOrder.forEach(r => {
+      const v = Number(row[r] ?? 0);
+      const segH = (v/100) * usableH;
+      const y0 = baseY - ((cum/100) * usableH) - segH;
+
+      add("rect", {
+        x: x0,
+        y: y0,
+        width: barW,
+        height: Math.max(0, segH),
+        fill: raceColors[r] || "#ccc",
+        opacity: 0.95
+      });
+
+      if(segH >= 22){
+        add("text", {
+          x: x0 + barW/2,
+          y: y0 + segH/2 + 4,
+          "text-anchor": "middle",
+          "font-size": 11,
+          "font-weight": 800,
+          fill: "rgba(11,18,32,0.88)"
+        }).textContent = `${v.toFixed(2)}%`;
+      }
+
+      cum += v;
+    });
+
+    // outline
+    add("rect", {
+      x: x0,
+      y: pad.t,
+      width: barW,
+      height: usableH,
+      fill: "none",
+      stroke: "rgba(10,20,40,0.12)",
+      "stroke-width": 1
+    });
+
+    // rank label
+    add("text", {
+      x: x0 + barW/2,
+      y: H - 12,
+      "text-anchor": "middle",
+      "font-size": 12,
+      "font-weight": 800,
+      fill: "rgba(11,18,32,0.78)"
+    }).textContent = row.rank;
+  });
+}
+
+/* ================= bands shift ================= */
+let shiftFrom = percents2025;
+let shiftTo = percentsAfter20;
+let shiftT = 0;
+
+let finaleT = 0;
+
+function mixPercents(a, b, t){
+  const out = {};
+  raceOrder.forEach(r => {
+    const av = a[r] ?? 0;
+    const bv = b[r] ?? 0;
+    out[r] = av + (bv - av) * t;
+  });
+  return out;
+}
+
+/* ================= time ruler ================= */
+const timeRuler = document.getElementById("timeRuler");
+const timeTrack = document.getElementById("timeTrack");
+const timeMarker = document.getElementById("timeMarker");
+const timeBubble = document.getElementById("timeBubble");
+
+function showTimeRuler(show){
+  if(!timeRuler) return;
+  timeRuler.classList.toggle("is-visible", !!show);
+}
+
+function buildTimeRulerTicks(){
+  if(!timeTrack) return;
+  Array.from(timeTrack.querySelectorAll(".timeTick, .timeLabel")).forEach(el => el.remove());
+
+  const padTop = 14;
+  const padBot = 14;
+  const trackH = timeTrack.clientHeight - padTop - padBot;
+
+  const labels = [0, 5, 10, 15, 20];
+  labels.forEach(y => {
+    const t = y / 20;
+    const top = padTop + t * trackH;
+
+    const tick = document.createElement("div");
+    tick.className = "timeTick";
+    tick.style.top = `${top}px`;
+    timeTrack.appendChild(tick);
+
+    const lab = document.createElement("div");
+    lab.className = "timeLabel";
+    lab.style.top = `${top}px`;
+    lab.textContent = `${y}y`;
+    timeTrack.appendChild(lab);
+  });
+}
+
+function updateTimeRuler(t){
+  if(!timeTrack || !timeMarker || !timeBubble) return;
+
+  const tt = clamp01(t);
+  const year = Math.round(tt * 20);
+  timeBubble.textContent = `${year}y`;
+
+  const padTop = 14;
+  const padBot = 14;
+  const trackH = timeTrack.clientHeight - padTop - padBot;
+  const top = padTop + tt * trackH;
+
+  timeMarker.style.top = `${top}px`;
+}
+
+/* ================= FINALE (white frame + closing + one dot) ================= */
+function drawFinale(nowMs){
+  const t = easeInOutCubic(clamp01(finaleT));
+
+  drawParticlesGeneric(ctx, particles2025, "bandsShift", nowMs, true);
+
+  const wipeTop = lerp(height + 2, 0, t); 
+
+  ctx.save();
+  ctx.fillStyle = "#ffffff";
+
+  ctx.fillRect(-2, wipeTop, width + 4, height - wipeTop + 4);
+  ctx.restore();
+
+
+  const textIn = clamp01((t - 0.15) / 0.35);
+  const textAlpha = easeInOutCubic(textIn);
+
+  if(textAlpha > 0.001){
+    const cx = width * 0.5;
+    const cy = height * 0.30;
+
+    ctx.save();
+    ctx.globalAlpha = 0.8 * textAlpha;
+    ctx.fillStyle = "#0b1220";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    ctx.font = "850 34px system-ui, -apple-system, sans-serif";
+    wrapText(
+      "Even though the NYPD is successfully recruiting diverse officers, diversity does not carry through the hierarchy.",
+      cx, cy - 10, Math.min(760, width * 0.78), 35
+    );
+
+    ctx.globalAlpha = 0.65 * textAlpha;
+    ctx.font = "650 16px system-ui, -apple-system, sans-serif";
+    wrapText(
+      "Research shows that while police departments have improved diversity in recruitment, they often fail to sustain it over time. A federal review on police recruitment and training finds that structural barriers in selection, evaluation, and promotion processes disproportionately limit advancement for officers from marginalized groups. National studies of U.S. law enforcement leadership further show that officers of color are significantly underrepresented in command ranks compared to their share of the force. As Reuters has reported in other institutions, underrepresentation at senior levels reinforces inequality by shaping who holds power and who advances. Diversity enters the department, but without structural change, it rarely reaches leadership.",
+      cx, cy + 100, Math.min(760, width * 0.78), 24
+    );
+
+    ctx.restore();
+  }
+}
+
+
+/* ================= views ================= */
+let currentViewKey = null;
+let currentPercents = percents2025;
+
+function setView(viewKey){
+  const v = views[viewKey];
+  if(!v) return;
+  if(currentViewKey === viewKey) return;
+
+  currentViewKey = viewKey;
+  sceneStartMs = performance.now();
+  titleVisible = false;
+  startTransition();
+
+  if(v.mode === "gallery") galleryStartMs = performance.now();
+
+  setFloatingVisibility(viewKey);
+
+  if(viewKey === "promotionPath") renderPromotionChart();
+  if(viewKey === "after20Ranks") renderRankChart();
+
+  if(v.mode === "soloTitleDelay"){
+    openingTextMode = "title";
+    particles2025.forEach(p=>{
+      if(p.isHero){
+        p.alpha = 1;
+        p.r = R_HERO;
+        p.tx = width * 0.50;
+        p.ty = height * 0.45 - UP_SHIFT;
+      } else p.alpha = 0;
+    });
+  }
+
+  if(v.mode === "soloYouText"){
+    openingTextMode = "you";
+    particles2025.forEach(p=>{
+      if(p.isHero){
+        p.alpha = 1;
+        p.r = R_HERO;
+        p.tx = width * 0.50;
+        p.ty = height * 0.45 - UP_SHIFT;
+      } else p.alpha = 0;
+    });
+  }
+
+  if(v.mode === "cohortGrey"){
+    openingTextMode = "none";
+    particles2025.forEach(p=>{
+      p.alpha = 1;
+      p.r = p.isHero ? R_HERO : R_DOT;
+      if(p.isHero){
+        p.tx = width * 0.5;
+        p.ty = height * 0.5;
+      } else {
+        p.tx = Math.random() * width;
+        p.ty = Math.random() * height;
+      }
+    });
+  }
+
+  if(v.mode === "bands"){
+    openingTextMode = "none";
+    currentPercents = v.percents;
+    setBands(particles2025, currentPercents, width, height);
+  }
+
+  if(v.mode === "gallery"){
+    openingTextMode = "none";
+    const final = galleryFinalFrames();
+    setBandsInRect(particles2025, percents2025, final.left);
+    setBandsInRect(particles2004, percents2004, final.right);
+  }
+
+  if(v.mode === "bandsShift"){
+    openingTextMode = "none";
+    shiftFrom = v.from;
+    shiftTo = v.to;
+    shiftT = 0;
+    currentPercents = shiftFrom;
+    setBands(particles2025, currentPercents, width, height);
+  }
+}
+
+/* ================= follow-up scene ================= */
+const floatingWrap = document.getElementById("floatingWrap");
+const cards = Array.from(document.querySelectorAll(".floatingCard"));
+
+function stepProgress(stepEl){
+  const rect = stepEl.getBoundingClientRect();
+  const vh = window.innerHeight;
+
+  const denom = (stepEl.dataset.view === "after20" || stepEl.dataset.view === "after20Ranks" || stepEl.dataset.view === "finale")
+    ? (rect.height + vh)
+    : (2 * vh);
+
+  return clamp01((vh - rect.top) / denom);
+}
+
+function centeredScore(p){
+  const dist = Math.abs(p - 0.5) * 2;
+  return 1 - clamp01(dist);
+}
+function setFloatingVisibility(viewKey){
+  if(viewKey === "opening" || viewKey === "youText" || viewKey === "finale"){
+    floatingWrap.classList.add("is-hidden");
+  } else {
+    floatingWrap.classList.remove("is-hidden");
+  }
+}
+
+const sceneOrder = ["opening","youText","cohortGreyStat","peersNew","gallery2004","promotionPath","backTo2025","after20","after20Ranks","finale"];
+
+function updateFromScroll(){
+  const vh = window.innerHeight;
+  const travelDefault = vh * 0.95;
+  const travelPromo = vh * 1.35;
+
+  cards.forEach(card => {
+    const viewKey = card.dataset.view;
+    const stepEl = steps.find(s => s.dataset.view === viewKey);
+    if(!stepEl) return;
+
+    const p = stepProgress(stepEl);
+
+    const travel = (viewKey === "promotionPath") ? travelPromo : travelDefault;
+    const yPx = lerp(travel, -travel, p);
+
+    const opacity = (viewKey === "promotionPath" || viewKey === "after20" || viewKey === "after20Ranks")
+      ? 1
+      : centeredScore(p);
+
+    card.style.transform = `translateY(${yPx}px)`;
+    card.style.opacity = opacity.toFixed(3);
+    card.style.zIndex = String(Math.round(opacity * 1000));
+  });
+
+  let bestKey = "opening";
+  let bestScore = -1;
+
+  sceneOrder.forEach(key => {
+    const stepEl = steps.find(s => s.dataset.view === key);
+    if(!stepEl) return;
+
+    const p = stepProgress(stepEl);
+    const score = centeredScore(p);
+
+    if(score > bestScore){
+      bestScore = score;
+      bestKey = key;
+    }
+  });
+
+  setView(bestKey);
+
+  const v = views[currentViewKey];
+
+  if(v && v.mode === "bandsShift"){
+    const stepEl = steps.find(s => s.dataset.view === currentViewKey);
+    const p = stepEl ? stepProgress(stepEl) : 0;
+
+    const t = clamp01((p - 0.25) / 0.50);
+
+    showTimeRuler(true);
+    updateTimeRuler(t);
+
+    if(Math.abs(t - shiftT) > 0.02){
+      shiftT = t;
+      currentPercents = mixPercents(shiftFrom, shiftTo, shiftT);
+      setBands(particles2025, currentPercents, width, height);
+    }
+  } else {
+    showTimeRuler(false);
+  }
+
+  const finaleStep = steps.find(s => s.dataset.view === "finale");
+  if(finaleStep){
+    const p = stepProgress(finaleStep);
+    finaleT = clamp01((p - 0.15) / 0.70);
+  } else {
+    finaleT = 0;
+  }
+}
+
+/* ================= render loop ================= */
+function draw(nowMs){
+  ctx.clearRect(0,0,width,height);
+
+  const v = views[currentViewKey] || views.opening;
+
+  if(v.mode === "finale"){
+  // hard reset background to white
+  ctx.save();
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.restore();
+
+  drawFinale(nowMs);
+  requestAnimationFrame(draw);
+  return;
+}
+
+  if(v.mode === "gallery"){
+    drawGallery(nowMs);
+    requestAnimationFrame(draw);
+    return;
+  }
+
+  if(v.mode === "bands" || v.mode === "bandsShift"){
+    const bands = computeBandRangesForHeight(currentPercents, height);
+    ctx.save();
+    ctx.strokeStyle = "rgba(10,20,40,0.06)";
+    ctx.lineWidth = 1;
+    raceOrder.forEach(r=>{
+      ctx.beginPath();
+      ctx.moveTo(0, bands[r].bottom);
+      ctx.lineTo(width, bands[r].bottom);
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  drawParticlesGeneric(ctx, particles2025, v.mode, nowMs, true);
+
+  if(openingTextMode === "title") drawTitleUnderDot(nowMs);
+  else if(openingTextMode === "you") drawYouTextUnderDot(nowMs);
+
+  if(v.mode === "bands" || v.mode === "bandsShift"){
+    drawBandLabelsOn(ctx, currentPercents, height);
+  }
+
+  requestAnimationFrame(draw);
+}
+
+/* ================= hooks ================= */
+let ticking = false;
+function onScroll(){
+  if(!ticking){
+    ticking = true;
+    requestAnimationFrame(() => {
+      updateFromScroll();
+      ticking = false;
+    });
+  }
+}
+window.addEventListener("scroll", onScroll, { passive: true });
+window.addEventListener("resize", () => {
+  resize();
+  renderPromotionChart();
+  renderRankChart();
+  buildTimeRulerTicks();
+  updateFromScroll();
+});
+
+// init
+setView("opening");
+buildTimeRulerTicks();
+showTimeRuler(false);
+updateFromScroll();
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>
